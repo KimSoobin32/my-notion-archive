@@ -12,6 +12,7 @@
 </head>
 <body>
   <h1>나만의 맛집 & 콘텐츠 기록장</h1>
+  <p style="color: #9ca3af; font-size: 0.9rem;">F12를 눌러 Console(콘솔) 탭에서 받아온 노션 API 원본 데이터를 확인하세요!</p>
   <div class="grid" id="grid">데이터를 불러오는 중...</div>
 
   <script>
@@ -21,11 +22,35 @@
         const res = await fetch('/api/notion');
         const data = await res.json();
         
+        // 1. 전체 원본 데이터를 콘솔에 출력 (F12 -> Console 탭에서 확인)
+        console.log('=== 🚀 노션 API에서 받아온 전체 데이터 목록 ===');
+        console.log(data);
+
         grid.innerHTML = '';
-        data.forEach(item => {
-          const name = item.properties['이름']?.title[0]?.plain_text 
-                    || item.properties['Title']?.title[0]?.plain_text 
-                    || '제목 없음';
+
+        if (!Array.isArray(data) || data.length === 0) {
+          grid.innerHTML = '가져온 데이터가 없거나 올바른 배열 형태가 아닙니다.';
+          return;
+        }
+
+        data.forEach((item, index) => {
+          // 2. 각 항목별 properties 구조 확인용 콘솔
+          console.log(`[항목 ${index + 1} 속성들]`, item.properties);
+
+          // 노션 기본 제목 속성 추출 시도
+          // 노션 DB에서 '제목' 역할을 하는 속성의 이름을 자동으로 찾아봅니다.
+          let name = '제목 없음';
+          
+          if (item.properties) {
+            for (const key in item.properties) {
+              const prop = item.properties[key];
+              // type이 'title'인 속성을 발견하면 해당 값을 가져옵니다.
+              if (prop.type === 'title' && prop.title && prop.title.length > 0) {
+                name = prop.title[0].plain_text;
+                break;
+              }
+            }
+          }
 
           const card = document.createElement('div');
           card.className = 'card';
@@ -33,6 +58,7 @@
           grid.appendChild(card);
         });
       } catch (err) {
+        console.error('데이터 로딩 중 에러 발생:', err);
         grid.innerHTML = '데이터를 불러오지 못했습니다.';
       }
     }
