@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>MY ARCHIVE</title>
+  <style>
+    body { background: #0f1117; color: #fff; font-family: sans-serif; padding: 40px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-top: 20px; }
+    .card { background: #1a1d26; border-radius: 12px; padding: 20px; border: 1px solid #2e3440; }
+    .title { font-size: 1.2rem; font-weight: bold; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h1>나만의 맛집 & 콘텐츠 기록장</h1>
+  <div class="grid" id="grid">데이터를 불러오는 중...</div>
+
+  <script>
+    async function loadData() {
+      const grid = document.getElementById('grid');
+      try {
+        const res = await fetch('/api/notion');
+        const data = await res.json();
+        
+        grid.innerHTML = '';
+        data.forEach(item => {
+          const name = item.properties['이름']?.title[0]?.plain_text 
+                    || item.properties['Title']?.title[0]?.plain_text 
+                    || '제목 없음';
+
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `<div class="title">${name}</div>`;
+          grid.appendChild(card);
+        });
+      } catch (err) {
+        grid.innerHTML = '데이터를 불러오지 못했습니다.';
+      }
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
