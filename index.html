@@ -4,36 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- ==========================================
-     1. 😋 이모지 파비콘 (SVG Data URI 방식)
-  ========================================== -->
+  <!-- 😋 이모지 파비콘 (SVG Data URI) -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>😋</text></svg>">
 
-  <!-- ==========================================
-     2. 기본 SEO (Search Engine Optimization)
-  ========================================== -->
+  <!-- 기본 SEO -->
   <title>맛노트 | 나만의 솔직 맛집 기록 & 추천 리스트</title>
   <meta name="description" content="직접 방문하고 검증한 솔직한 맛집 리뷰 노트. 한식, 중식, 일식, 양식부터 5점 추천 맛집까지 한눈에 확인하세요.">
   <meta name="keywords" content="맛집, 맛집추천, 맛집리뷰, 맛노트, 노션맛집, 음식점추천, 5점맛집">
   <meta name="author" content="TasteNote">
-  <link rel="canonical" href="https://your-domain.com/">
 
   <!-- Open Graph (소셜 미디어 공유 최적화) -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="맛노트">
   <meta property="og:title" content="맛노트 | 나만의 솔직 맛집 기록">
   <meta property="og:description" content="직접 방문하고 기록한 맛집 리스트! 별 5개 추천 맛집을 확인해 보세요.">
-  <meta property="og:url" content="https://your-domain.com/">
   <meta property="og:locale" content="ko_KR">
 
-  <!-- ==========================================
-     3. GEO (Generative Engine Optimization & 지리적 검색)
-     - ChatGPT, Perplexity, Google Search AI 등의 답변 인덱싱 최적화
-  ========================================== -->
+  <!-- GEO & 구조화 데이터 (AI 최적화) -->
   <meta name="geo.region" content="KR">
   <meta name="geo.placename" content="대한민국">
-  
-  <!-- JSON-LD 구조화 데이터 (AI engine 분석용) -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -45,28 +34,29 @@
   }
   </script>
 
+  <!-- 스타일시트 경로 설정 -->
   <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
 
-  <!-- 웹 접근성: 시각 장애인 및 키보드 사용자를 위한 스킵 네비게이션 -->
+  <!-- 웹 접근성: 스킵 네비게이션 -->
   <a href="#main-content" class="skip-link">본문 바로가기</a>
 
   <!-- 헤더 영역 -->
   <header role="banner">
-    <h1>😋 맛노트</h1>
+    <h1 class="header-title">😋 맛노트</h1>
   </header>
 
-  <!-- 메인 콘텐츠 영역 (접근성 구조화) -->
+  <!-- 메인 콘텐츠 영역 -->
   <main id="main-content" role="main">
     
     <!-- 상단 추천 맛집 캐러셀 -->
     <section id="featured-container" class="featured-section" aria-label="추천 맛집 리스트" style="display: none;">
-      <div class="featured-header-group">
-        <h2 class="featured-header">🔥 강추! 최고 점수 맛집 (⭐ 5개)</h2>
-        <div class="featured-controls">
-          <button id="featured-prev" class="slider-btn" aria-label="이전 추천 맛집 보기">&#10094;</button>
-          <button id="featured-next" class="slider-btn" aria-label="다음 추천 맛집 보기">&#10095;</button>
+      <div class="featured-header">
+        <h2 class="featured-title">🔥 강추! 최고 점수 맛집 (⭐ 5개)</h2>
+        <div class="featured-nav-btns">
+          <button id="featured-prev" class="nav-btn" aria-label="이전 추천 맛집 보기">&#10094;</button>
+          <button id="featured-next" class="nav-btn" aria-label="다음 추천 맛집 보기">&#10095;</button>
         </div>
       </div>
       
@@ -76,20 +66,47 @@
     </section>
 
     <!-- 카테고리 필터 및 정렬 바 -->
-    <section class="controls-section" aria-label="맛집 필터 및 정렬 옵션">
-      <!-- 스크린 리더용 레이블 -->
-      <label for="sort-select" class="visually-hidden">정렬 기준 선택</label>
-      <!-- 기존 정렬 및 카테고리 필터 요소들 -->
+    <section class="controls-bar" aria-label="맛집 필터 및 정렬 옵션">
+      <div id="cuisine-filter-bar" class="cuisine-filter-bar">
+        <button class="cuisine-btn active" data-cuisine="ALL">전체</button>
+        <button class="cuisine-btn" data-cuisine="한식">한식</button>
+        <button class="cuisine-btn" data-cuisine="중식">중식</button>
+        <button class="cuisine-btn" data-cuisine="일식">일식</button>
+        <button class="cuisine-btn" data-cuisine="양식">양식</button>
+        <button class="cuisine-btn" data-cuisine="분식">분식</button>
+        <button class="cuisine-btn" data-cuisine="고깃집">고깃집</button>
+        <button class="cuisine-btn" data-cuisine="카페">카페/디저트</button>
+        <button class="cuisine-btn" data-cuisine="기타">기타</button>
+      </div>
+
+      <div>
+        <label for="sort-select" class="visually-hidden">정렬 기준 선택</label>
+        <select id="sort-select" class="sort-select">
+          <option value="latest">최신 방문순</option>
+          <option value="oldest">오래된 방문순</option>
+          <option value="rating-desc">평점 높은순</option>
+          <option value="rating-asc">평점 낮은순</option>
+        </select>
+      </div>
     </section>
 
     <!-- 맛집 카드 그리드 -->
     <section aria-label="전체 맛집 목록">
-      <div id="restaurant-grid" class="grid-container" aria-live="polite"></div>
+      <div id="restaurant-grid" class="restaurant-grid" aria-live="polite"></div>
     </section>
 
   </main>
 
-  <script src="./js/app.js"></script>
+  <!-- 상세 보기 모달 레이어 (id="modal-body" 미존재 오류 방지를 위한 정돈된 구조) -->
+  <div id="modal-overlay" class="modal-overlay">
+    <div class="modal-content">
+      <button id="modal-close" class="modal-close" aria-label="닫기">&times;</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- 스크립트 경로 설정 (blocks.js -> app.js 순서) -->
   <script src="./js/blocks.js"></script>
+  <script src="./js/app.js"></script>
 </body>
 </html>
