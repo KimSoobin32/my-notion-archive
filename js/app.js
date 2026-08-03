@@ -241,11 +241,10 @@ function renderFeaturedSection() {
     track.appendChild(card);
   });
 
-  // 추천 슬라이더 드래그 & 버튼 인터랙션 적용
   setupFeaturedCarouselControls();
 }
 
-// 추천 캐러셀 버튼 클릭 및 드래그 스크롤 이벤트 연결
+// 추천 캐러셀 버튼 클릭 및 마우스 드래그 스크롤 이벤트 연결
 function setupFeaturedCarouselControls() {
   const slider = document.getElementById('featured-slider');
   const prevBtn = document.getElementById('featured-prev');
@@ -253,7 +252,6 @@ function setupFeaturedCarouselControls() {
 
   if (!slider) return;
 
-  // 1. 좌/우 버튼 클릭 시 1칸(300px)씩 이동
   const scrollStep = 300;
 
   if (prevBtn) {
@@ -268,7 +266,6 @@ function setupFeaturedCarouselControls() {
     };
   }
 
-  // 2. 마우스 드래그로 스크롤 넘기기 구현
   let isDown = false;
   let startX = 0;
   let scrollLeft = 0;
@@ -296,7 +293,7 @@ function setupFeaturedCarouselControls() {
     if (!isDown) return;
     e.preventDefault();
     const x = e.pageX - slider.offsetLeft;
-    const walk = (x - startX) * 1.5; // 드래그 속도 감도 조절
+    const walk = (x - startX) * 1.5;
     
     if (Math.abs(walk) > 5) {
       isDragging = true;
@@ -304,7 +301,6 @@ function setupFeaturedCarouselControls() {
     slider.scrollLeft = scrollLeft - walk;
   };
 
-  // 드래그 후 클릭 이벤트 방지 (드래그 시 모달창 열림 방지)
   slider.onclick = (e) => {
     if (isDragging) {
       e.stopPropagation();
@@ -407,7 +403,7 @@ function setupSortEvent() {
   }
 }
 
-// 카드 DOM 요소 생성
+// 카드 DOM 요소 생성 (접근성 키보드 옵션 포함)
 function createCardElement(item, originalIndex, isFeatured = false) {
   const props = item.properties || {};
 
@@ -426,11 +422,17 @@ function createCardElement(item, originalIndex, isFeatured = false) {
 
   const card = document.createElement('div');
   card.className = `card ${isFiveStar || isFeatured ? 'featured-card' : ''}`;
+  
+  // 웹 접근성 (A11y) 설정
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('role', 'button');
+  card.setAttribute('aria-label', `${title}, ${cuisine || '음식점'}, 평점 ${rating || '없음'}`);
+
   card.innerHTML = `
     ${isFiveStar ? '<div class="featured-badge">👑 MUST VISIT</div>' : ''}
     <div>
       <div class="card-header">
-        <span class="icon">${icon}</span>
+        <span class="icon" aria-hidden="true">${icon}</span>
         <span class="title">${title}</span>
       </div>
 
@@ -447,7 +449,15 @@ function createCardElement(item, originalIndex, isFeatured = false) {
     ${visitDate ? `<div class="date">방문일: ${visitDate}</div>` : ''}
   `;
 
+  // 마우스 클릭 및 키보드 엔터/스페이스 바 지원
   card.addEventListener('click', () => openDetailModal(originalIndex));
+  card.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openDetailModal(originalIndex);
+    }
+  });
+
   return card;
 }
 
@@ -470,7 +480,7 @@ async function openDetailModal(index) {
 
   modalBody.innerHTML = `
     <div class="modal-title-group">
-      <span class="icon">${icon}</span>
+      <span class="icon" aria-hidden="true">${icon}</span>
       <h2 class="modal-title">${title}</h2>
     </div>
 
@@ -493,7 +503,12 @@ async function openDetailModal(index) {
     ${notionUrl ? `<a href="${notionUrl}" target="_blank" rel="noopener" class="modal-notion-link">🔗 노션에서 원본 보기 ↗</a>` : ''}
   `;
 
-  document.getElementById('modal-overlay').classList.add('active');
+  const overlay = document.getElementById('modal-overlay');
+  overlay.classList.add('active');
+
+  // 모달 오픈 시 닫기 버튼에 포커스 조율 (접근성)
+  const closeBtn = document.getElementById('modal-close');
+  if (closeBtn) closeBtn.focus();
 
   await yieldToMain();
 
@@ -532,15 +547,20 @@ function setupModalEvents() {
 
   const closeModal = () => overlay.classList.remove('active');
 
-  closeBtn.addEventListener('click', closeModal);
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) closeModal();
-  });
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  
+  if (overlay) {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeModal();
+    });
+  }
 
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Escape' && overlay?.classList.contains('active')) {
+      closeModal();
+    }
   });
 }
 
-// 앱 실행
+// 애플리케이션 시작
 init();
