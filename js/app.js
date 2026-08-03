@@ -505,7 +505,7 @@ async function openDetailModal(index) {
     </div>
 
     ${visitDate ? `<div class="date" style="margin-top:16px; text-align:left;">🗓️ 방문일: ${visitDate}</div>` : ''}
-    ${notionUrl ? `<a href="${notionUrl}" target="_blank" rel="noopener" class="modal-notion-link">🔗 노션에서 원본 보기 ↗</a>` : ''}
+    
   `;
 
   const overlay = document.getElementById('modal-overlay');
