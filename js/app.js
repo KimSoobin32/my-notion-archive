@@ -1,6 +1,5 @@
 // ==========================================
 // 1. 성능 최적화 유틸리티 (INP 지표 개선용)
-// 메인 스레드가 UI 업데이트를 즉시 처리할 수 있도록 제어권을 양보합니다.
 // ==========================================
 const yieldToMain = () => {
   return new Promise((resolve) => {
@@ -46,6 +45,22 @@ const NotionParser = {
     return this.getText(prop);
   },
 
+  // 별점 숫자 값 추출 (정렬용)
+  getRatingValue(prop) {
+    if (!prop) return 0;
+    if (prop.type === 'number' && typeof prop.number === 'number') {
+      return prop.number;
+    }
+    if (prop.type === 'select' && prop.select) {
+      const match = prop.select.name.match(/★/g);
+      return match ? match.length : parseFloat(prop.select.name) || 0;
+    }
+    const str = this.getText(prop);
+    const match = str.match(/★/g);
+    if (match) return match.length;
+    return parseFloat(str) || 0;
+  },
+
   getDate(prop) {
     if (!prop || !prop.date) return '';
     return prop.date.start || '';
@@ -54,7 +69,6 @@ const NotionParser = {
 
 // ==========================================
 // 3. 노션 본문 블록(Block) HTML 변환 파서
-// 토글, 콜아웃 등 하위 자식 블록(children)까지 재귀적으로 변환합니다.
 // ==========================================
 function parseBlockToHtml(block) {
   const type = block.type;
@@ -67,7 +81,6 @@ function parseBlockToHtml(block) {
     return richTextArr.map(t => t.plain_text).join('');
   };
 
-  // 하위 자식 블록이 존재할 경우 재귀 파싱
   let childrenHtml = '';
   if (block.children && block.children.length > 0) {
     childrenHtml = block.children.map(child => parseBlockToHtml(child)).join('');
@@ -122,7 +135,7 @@ function parseBlockToHtml(block) {
 }
 
 // ==========================================
-// 4. 메인 애플리케이션 상태 및 로직
+// 4. 메인 애플리케이션 상태 및 정렬 로직
 // ==========================================
 let rawNotionData = [];
 
@@ -132,23 +145,25 @@ async function init() {
   try {
     const res = await fetch('/api/notion');
     const data = await res.json();
-    rawNotionData = data;
 
-    // F12 개발자 도구 콘솔 확인용
+    // 데이터 복사 및 원본 순서 인덱스 보존 (모달 참조용)
+    rawNotionData = (Array.isArray(data) ? data : []).map((item, index) => ({
+      ...item,
+      originalIndex: index
+    }));
+
     console.log('=== 🚀 노션 API 원본 데이터 ===', rawNotionData);
 
-    grid.innerHTML = '';
-
-    if (!Array.isArray(data) || data.length === 0) {
+    if (rawNotionData.length === 0) {
       grid.innerHTML = '<div class="loading">등록된 맛집 데이터가 없습니다.</div>';
       return;
     }
 
-    data.forEach((item, index) => {
-      const card = createCardElement(item, index);
-      grid.appendChild(card);
-    });
+    // 초기 카드 목록 렌더링
+    renderCards(rawNotionData);
 
+    // 정렬 드롭다운 이벤트 연결
+    setupSortEvent();
     setupModalEvents();
 
   } catch (err) {
@@ -157,8 +172,84 @@ async function init() {
   }
 }
 
+// 카드 목록 렌더링 함수
+function renderCards(dataList) {
+  const grid = document.getElementById('restaurant-grid');
+  grid.innerHTML = '';
+
+  dataList.forEach((item) => {
+    const card = createCardElement(item, item.originalIndex);
+    grid.appendChild(card);
+  });
+}
+
+// 정렬 알고리즘 적용 함수
+function sortData(sortType) {
+  const sorted = [...rawNotionData];
+
+  switch (sortType) {
+    case 'latest':
+      // 최신 방문일 순 (방문일 없는 경우 뒤로 배치)
+      sorted.sort((a, b) => {
+        const dateA = NotionParser.getDate(a.properties['방문일']);
+        const dateB = NotionParser.getDate(b.properties['방문일']);
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return new Date(dateB) - new Date(dateA);
+      });
+      break;
+
+    case 'oldest':
+      // 오래된 방문일 순
+      sorted.sort((a, b) => {
+        const dateA = NotionParser.getDate(a.properties['방문일']);
+        const dateB = NotionParser.getDate(b.properties['방문일']);
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return new Date(dateA) - new Date(dateB);
+      });
+      break;
+
+    case 'rating-desc':
+      // 별점 높은 순
+      sorted.sort((a, b) => {
+        const ratingA = NotionParser.getRatingValue(a.properties['Rating'] || a.properties['평점']);
+        const ratingB = NotionParser.getRatingValue(b.properties['Rating'] || b.properties['평점']);
+        return ratingB - ratingA;
+      });
+      break;
+
+    case 'rating-asc':
+      // 별점 낮은 순
+      sorted.sort((a, b) => {
+        const ratingA = NotionParser.getRatingValue(a.properties['Rating'] || a.properties['평점']);
+        const ratingB = NotionParser.getRatingValue(b.properties['Rating'] || b.properties['평점']);
+        return ratingA - ratingB;
+      });
+      break;
+
+    case 'default':
+    default:
+      // 노션 기본 데이터 순서
+      sorted.sort((a, b) => a.originalIndex - b.originalIndex);
+      break;
+  }
+
+  renderCards(sorted);
+}
+
+// 정렬 드롭다운 이벤트 등록
+function setupSortEvent() {
+  const sortSelect = document.getElementById('sort-select');
+  if (sortSelect) {
+    sortSelect.addEventListener('change', (e) => {
+      sortData(e.target.value);
+    });
+  }
+}
+
 // 카드 DOM 생성
-function createCardElement(item, index) {
+function createCardElement(item, originalIndex) {
   const props = item.properties || {};
 
   const icon = item.icon?.type === 'emoji' ? item.icon.emoji : '🍽️';
@@ -190,13 +281,13 @@ function createCardElement(item, index) {
     ${visitDate ? `<div class="date">방문일: ${visitDate}</div>` : ''}
   `;
 
-  card.addEventListener('click', () => openDetailModal(index));
+  card.addEventListener('click', () => openDetailModal(originalIndex));
   return card;
 }
 
 // 상세 모달 열기 (INP 지표 최적화 적용)
 async function openDetailModal(index) {
-  const item = rawNotionData[index];
+  const item = rawNotionData.find(d => d.originalIndex === index);
   if (!item) return;
 
   const props = item.properties || {};
@@ -210,7 +301,6 @@ async function openDetailModal(index) {
 
   const modalBody = document.getElementById('modal-body');
 
-  // 1. UI 및 모달 팝업 우선 렌더링 (즉각적인 화면 반응 확보)
   modalBody.innerHTML = `
     <div class="modal-title-group">
       <span class="icon">${icon}</span>
@@ -237,16 +327,12 @@ async function openDetailModal(index) {
 
   document.getElementById('modal-overlay').classList.add('active');
 
-  // 2. 브라우저가 모달 애니메이션 및 UI를 즉시 그리도록 스레드 양보
   await yieldToMain();
 
-  // 3. 비동기 백엔드 API 요청 및 배치 단위 HTML 파싱
   try {
     const res = await fetch(`/api/blocks?pageId=${item.id}`);
     const blocks = await res.json();
     
-    console.log(`=== 📄 [${title}] 노션 본문 블록 데이터 ===`, blocks);
-
     const contentArea = document.getElementById('modal-content-area');
     
     if (!Array.isArray(blocks) || blocks.length === 0) {
@@ -254,12 +340,10 @@ async function openDetailModal(index) {
       return;
     }
 
-    // 블록 수가 많을 경우 스레드 블로킹 방지 (Long Task 분할)
     let htmlContent = '';
     for (let i = 0; i < blocks.length; i++) {
       htmlContent += parseBlockToHtml(blocks[i]);
       
-      // 10개 블록 파싱마다 메인 스레드 유예
       if (i > 0 && i % 10 === 0) {
         await yieldToMain();
       }
