@@ -1,5 +1,6 @@
 // ==========================================
 // 1. 성능 최적화 유틸리티 (INP 지표 개선용)
+// 메인 스레드가 UI 업데이트를 즉시 처리할 수 있도록 제어권을 양보합니다.
 // ==========================================
 const yieldToMain = () => {
   return new Promise((resolve) => {
@@ -47,24 +48,40 @@ const NotionParser = {
     return '';
   },
 
-  // Cuisine Type 추출 및 표준화 (치킨 -> 호프/기타 등 매핑)
+  // Cuisine Type 추출 및 규격화 파서
   getCuisine(props) {
-    const rawCuisine = this.getText(props['Cuisine']) || 
-                       this.getText(props['cuisine']) || 
-                       this.getText(props['종류']) || 
-                       this.getText(props['카테고리']) || 
-                       this.getText(props['음식종류']);
+    // 1. 노션 property 키 지원 ('Cuisine Type', 'Cuisine', '종류', '카테고리' 등)
+    const prop = props['Cuisine Type'] || 
+                 props['Cuisine'] || 
+                 props['cuisine'] || 
+                 props['종류'] || 
+                 props['카테고리'] || 
+                 props['음식종류'];
 
-    if (!rawCuisine) return '기타';
+    if (!prop) return '기타';
 
-    // 지정된 규격 범주에 맞는 지 체크
-    const found = CUISINE_TYPES.find(type => rawCuisine.includes(type));
-    if (found) return found;
+    let rawValue = '';
 
-    // 예외 매핑 예시 (치킨 -> 호프 또는 한식으로 자동 매핑 원할 시 조정 가능)
-    if (rawCuisine.includes('치킨')) return '호프';
+    // 2. select 타입 처리 (prop.select.name)
+    if (prop.type === 'select' && prop.select) {
+      rawValue = prop.select.name;
+    } 
+    // 3. multi_select 타입 처리
+    else if (prop.type === 'multi_select' && prop.multi_select?.length > 0) {
+      rawValue = prop.multi_select[0].name;
+    } 
+    // 4. rich_text 타입 처리
+    else {
+      rawValue = this.getText(prop);
+    }
 
-    return '기타';
+    if (!rawValue) return '기타';
+
+    // 5. 옵션 목록(CUISINE_TYPES) 중 완벽히 일치하거나 포함되는 항목 찾기
+    const matched = CUISINE_TYPES.find(type => rawValue.trim() === type || rawValue.includes(type));
+
+    // 6. 지정된 옵션 목록에 없으면 '기타' 반환
+    return matched || '기타';
   },
 
   getRating(prop) {
@@ -173,7 +190,7 @@ function parseBlockToHtml(block) {
 }
 
 // ==========================================
-// 5. 메인 애플리케이션 상태
+// 5. 메인 애플리케이션 상태 및 필터/정렬
 // ==========================================
 let rawNotionData = [];
 let currentCuisineFilter = 'ALL';
@@ -198,7 +215,7 @@ async function init() {
       return;
     }
 
-    // 초기 카드 렌더링 (전체 필터 + 최신순)
+    // 초기 카드 렌더링 (전체 필터 + 최신 방문순 기본 적용)
     applyFilterAndSort();
 
     setupCuisineFilterEvents();
@@ -211,7 +228,7 @@ async function init() {
   }
 }
 
-// 필터와 정렬을 함께 적용하는 핵심 함수
+// 필터링과 정렬을 통합 실행하는 함수
 function applyFilterAndSort() {
   // 1. Cuisine 필터링
   let filtered = rawNotionData.filter(item => {
@@ -257,7 +274,8 @@ function applyFilterAndSort() {
         if (!dateB) return -1;
         return new Date(dateB) - new Date(dateA);
       });
-      break;  }
+      break;
+  }
 
   renderCards(filtered);
 }
@@ -278,7 +296,7 @@ function renderCards(dataList) {
   });
 }
 
-// 카테고리 필터 버튼 이벤트 설정
+// 카테고리 필터 버튼 이벤트 연결
 function setupCuisineFilterEvents() {
   const filterBar = document.getElementById('cuisine-filter-bar');
   if (!filterBar) return;
@@ -287,17 +305,15 @@ function setupCuisineFilterEvents() {
     const btn = e.target.closest('.cuisine-btn');
     if (!btn) return;
 
-    // Active 클래스 갱신
     document.querySelectorAll('.cuisine-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 
-    // 선택된 카테고리 적용 후 필터링
     currentCuisineFilter = btn.dataset.cuisine;
     applyFilterAndSort();
   });
 }
 
-// 정렬 드롭다운 이벤트
+// 정렬 드롭다운 이벤트 연결
 function setupSortEvent() {
   const sortSelect = document.getElementById('sort-select');
   if (sortSelect) {
@@ -308,7 +324,7 @@ function setupSortEvent() {
   }
 }
 
-// 카드 DOM 생성
+// 카드 DOM 요소 생성
 function createCardElement(item, originalIndex) {
   const props = item.properties || {};
 
@@ -438,5 +454,5 @@ function setupModalEvents() {
   });
 }
 
-// 앱 시작
+// 앱 실행
 init();
