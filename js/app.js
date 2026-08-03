@@ -40,25 +40,39 @@ const NotionParser = {
 
   getRating(prop) {
     if (!prop) return '';
-    if (prop.type === 'number' && prop.number) return '★'.repeat(prop.number);
+    if (prop.type === 'number' && typeof prop.number === 'number') {
+      return '⭐'.repeat(prop.number);
+    }
     if (prop.type === 'select' && prop.select) return prop.select.name;
     return this.getText(prop);
   },
 
-  // 별점 숫자 값 추출 (정렬용)
+  // 별점 이모지("⭐⭐⭐") 및 숫자를 수치(0~5)로 정확히 파싱하는 정렬용 로직
   getRatingValue(prop) {
     if (!prop) return 0;
+
+    // 1. 노션 타입이 숫자형일 때
     if (prop.type === 'number' && typeof prop.number === 'number') {
       return prop.number;
     }
-    if (prop.type === 'select' && prop.select) {
-      const match = prop.select.name.match(/★/g);
-      return match ? match.length : parseFloat(prop.select.name) || 0;
+
+    // 2. Select 또는 Rich Text 문자열에서 별점 읽기
+    const rawStr = prop.type === 'select' && prop.select ? prop.select.name : this.getText(prop);
+    if (!rawStr) return 0;
+
+    // 이모지 ⭐ (U+2B50) 및 ★ (U+2605) 세기
+    const starMatches = rawStr.match(/[\u2B50\u2605]/g);
+    if (starMatches) {
+      return starMatches.length;
     }
-    const str = this.getText(prop);
-    const match = str.match(/★/g);
-    if (match) return match.length;
-    return parseFloat(str) || 0;
+
+    // "3점", "3" 같이 숫자로 전달되었을 경우
+    const numMatch = rawStr.match(/\d+(\.\d+)?/);
+    if (numMatch) {
+      return parseFloat(numMatch[0]);
+    }
+
+    return 0;
   },
 
   getDate(prop) {
@@ -146,7 +160,6 @@ async function init() {
     const res = await fetch('/api/notion');
     const data = await res.json();
 
-    // 데이터 복사 및 원본 순서 인덱스 보존 (모달 참조용)
     rawNotionData = (Array.isArray(data) ? data : []).map((item, index) => ({
       ...item,
       originalIndex: index
@@ -159,10 +172,9 @@ async function init() {
       return;
     }
 
-    // 초기 카드 목록 렌더링
-    renderCards(rawNotionData);
+    // 기본 정렬: 최신 방문순 적용
+    sortData('latest');
 
-    // 정렬 드롭다운 이벤트 연결
     setupSortEvent();
     setupModalEvents();
 
@@ -183,24 +195,13 @@ function renderCards(dataList) {
   });
 }
 
-// 정렬 알고리즘 적용 함수
+// 정렬 알고리즘
 function sortData(sortType) {
   const sorted = [...rawNotionData];
 
   switch (sortType) {
-    case 'latest':
-      // 최신 방문일 순 (방문일 없는 경우 뒤로 배치)
-      sorted.sort((a, b) => {
-        const dateA = NotionParser.getDate(a.properties['방문일']);
-        const dateB = NotionParser.getDate(b.properties['방문일']);
-        if (!dateA) return 1;
-        if (!dateB) return -1;
-        return new Date(dateB) - new Date(dateA);
-      });
-      break;
-
     case 'oldest':
-      // 오래된 방문일 순
+      // 오래된 방문순
       sorted.sort((a, b) => {
         const dateA = NotionParser.getDate(a.properties['방문일']);
         const dateB = NotionParser.getDate(b.properties['방문일']);
@@ -213,8 +214,8 @@ function sortData(sortType) {
     case 'rating-desc':
       // 별점 높은 순
       sorted.sort((a, b) => {
-        const ratingA = NotionParser.getRatingValue(a.properties['Rating'] || a.properties['평점']);
-        const ratingB = NotionParser.getRatingValue(b.properties['Rating'] || b.properties['평점']);
+        const ratingA = NotionParser.getRatingValue(a.properties['Rating'] || a.properties['평점'] || a.properties['별점']);
+        const ratingB = NotionParser.getRatingValue(b.properties['Rating'] || b.properties['평점'] || b.properties['별점']);
         return ratingB - ratingA;
       });
       break;
@@ -222,23 +223,29 @@ function sortData(sortType) {
     case 'rating-asc':
       // 별점 낮은 순
       sorted.sort((a, b) => {
-        const ratingA = NotionParser.getRatingValue(a.properties['Rating'] || a.properties['평점']);
-        const ratingB = NotionParser.getRatingValue(b.properties['Rating'] || b.properties['평점']);
+        const ratingA = NotionParser.getRatingValue(a.properties['Rating'] || a.properties['평점'] || a.properties['별점']);
+        const ratingB = NotionParser.getRatingValue(b.properties['Rating'] || b.properties['평점'] || b.properties['별점']);
         return ratingA - ratingB;
       });
       break;
 
-    case 'default':
+    case 'latest':
     default:
-      // 노션 기본 데이터 순서
-      sorted.sort((a, b) => a.originalIndex - b.originalIndex);
+      // 최신 방문순 (방문일 없으면 맨 뒤로)
+      sorted.sort((a, b) => {
+        const dateA = NotionParser.getDate(a.properties['방문일']);
+        const dateB = NotionParser.getDate(b.properties['방문일']);
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return new Date(dateB) - new Date(dateA);
+      });
       break;
   }
 
   renderCards(sorted);
 }
 
-// 정렬 드롭다운 이벤트 등록
+// 정렬 드롭다운 이벤트
 function setupSortEvent() {
   const sortSelect = document.getElementById('sort-select');
   if (sortSelect) {
@@ -256,7 +263,7 @@ function createCardElement(item, originalIndex) {
   const title = NotionParser.getTitle(props);
   const menu = NotionParser.getText(props['매뉴']) || NotionParser.getText(props['메뉴']);
   const city = NotionParser.getText(props['City']) || NotionParser.getText(props['도시']);
-  const rating = NotionParser.getRating(props['Rating']) || NotionParser.getRating(props['평점']);
+  const rating = NotionParser.getRating(props['Rating'] || props['평점'] || props['별점']);
   const comment = NotionParser.getText(props['Comment']) || NotionParser.getText(props['코멘트']);
   const visitDate = NotionParser.getDate(props['방문일']);
 
@@ -274,7 +281,7 @@ function createCardElement(item, originalIndex) {
         ${menu ? `<span class="tag">🍴 ${menu}</span>` : ''}
       </div>
 
-      ${rating ? `<div class="rating">⭐ ${rating}</div>` : ''}
+      ${rating ? `<div class="rating">${rating.includes('⭐') ? rating : '⭐ ' + rating}</div>` : ''}
       ${comment ? `<div class="preview-comment">${comment}</div>` : ''}
     </div>
 
@@ -285,7 +292,7 @@ function createCardElement(item, originalIndex) {
   return card;
 }
 
-// 상세 모달 열기 (INP 지표 최적화 적용)
+// 상세 모달 열기
 async function openDetailModal(index) {
   const item = rawNotionData.find(d => d.originalIndex === index);
   if (!item) return;
@@ -295,7 +302,7 @@ async function openDetailModal(index) {
   const title = NotionParser.getTitle(props);
   const menu = NotionParser.getText(props['매뉴']) || NotionParser.getText(props['메뉴']);
   const city = NotionParser.getText(props['City']) || NotionParser.getText(props['도시']);
-  const rating = NotionParser.getRating(props['Rating']) || NotionParser.getRating(props['평점']);
+  const rating = NotionParser.getRating(props['Rating'] || props['평점'] || props['별점']);
   const visitDate = NotionParser.getDate(props['방문일']);
   const notionUrl = item.public_url || item.url;
 
@@ -312,7 +319,7 @@ async function openDetailModal(index) {
       ${menu ? `<span class="tag">🍴 ${menu}</span>` : ''}
     </div>
 
-    ${rating ? `<div class="rating" style="font-size:1.2rem; margin-top:8px;">⭐ ${rating}</div>` : ''}
+    ${rating ? `<div class="rating" style="font-size:1.2rem; margin-top:8px;">${rating.includes('⭐') ? rating : '⭐ ' + rating}</div>` : ''}
 
     <div class="modal-section">
       <div class="modal-section-title">상세 리뷰 본문</div>
@@ -332,9 +339,9 @@ async function openDetailModal(index) {
   try {
     const res = await fetch(`/api/blocks?pageId=${item.id}`);
     const blocks = await res.json();
-    
+
     const contentArea = document.getElementById('modal-content-area');
-    
+
     if (!Array.isArray(blocks) || blocks.length === 0) {
       contentArea.innerHTML = '<p style="color:#6c7a96;">본문에 작성된 내용이 없습니다.</p>';
       return;
@@ -343,7 +350,7 @@ async function openDetailModal(index) {
     let htmlContent = '';
     for (let i = 0; i < blocks.length; i++) {
       htmlContent += parseBlockToHtml(blocks[i]);
-      
+
       if (i > 0 && i % 10 === 0) {
         await yieldToMain();
       }
