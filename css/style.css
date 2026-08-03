@@ -121,6 +121,9 @@ body {
   line-height: 1.6; 
   color: #e5e9f0; 
   white-space: pre-wrap;
+
+  content-visibility: auto; /* 화면 밖 요소 렌더링 건너뜀 */
+  contain-intrinsic-size: 1px 500px;
 }
 .modal-notion-link {
   display: inline-block;
