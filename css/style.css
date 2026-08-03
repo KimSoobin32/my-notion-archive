@@ -133,3 +133,40 @@ body {
   font-size: 0.9rem;
 }
 .modal-notion-link:hover { text-decoration: underline; }
+
+/* 필터 스크롤바 및 버튼 디자인 */
+.cuisine-bar::-webkit-scrollbar {
+  height: 6px;
+}
+.cuisine-bar::-webkit-scrollbar-thumb {
+  background: #4c566a;
+  border-radius: 4px;
+}
+.cuisine-btn {
+  background: #2e3440;
+  color: #d8dee9;
+  border: 1px solid #434c5e;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+.cuisine-btn:hover {
+  background: #3b4252;
+  border-color: #88c0d0;
+}
+.cuisine-btn.active {
+  background: #88c0d0;
+  color: #2e3440;
+  font-weight: bold;
+  border-color: #88c0d0;
+}
+
+/* 요리 종류 태그 스타일 추가 */
+.tag.cuisine {
+  background: #3b4252;
+  color: #88c0d0;
+  border: 1px solid #434c5e;
+}
