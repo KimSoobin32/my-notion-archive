@@ -48,7 +48,6 @@ const NotionParser = {
     return '';
   },
 
-  // Cuisine Type 추출 및 규격화 파서
   getCuisine(props) {
     const prop = props['Cuisine Type'] || 
                  props['Cuisine'] || 
@@ -204,10 +203,7 @@ async function init() {
       return;
     }
 
-    // 1. 상단 추천 맛집 섹션(별 5개) 렌더링
     renderFeaturedSection();
-
-    // 2. 메인 카드 목록 렌더링
     applyFilterAndSort();
 
     setupCuisineFilterEvents();
@@ -220,14 +216,13 @@ async function init() {
   }
 }
 
-// 상단 추천 맛집 (Rating 5점) 섹션 렌더링
+// 상단 추천 맛집 (Rating 5점) 섹션 렌더링 및 캐러셀 스크립트 연결
 function renderFeaturedSection() {
   const container = document.getElementById('featured-container');
   const track = document.getElementById('featured-track');
   
   if (!container || !track) return;
 
-  // 별점 5점 이상인 맛집만 필터링
   const featuredList = rawNotionData.filter(item => {
     const ratingVal = NotionParser.getRatingValue(item.properties['Rating'] || item.properties['평점'] || item.properties['별점']);
     return ratingVal >= 5;
@@ -242,10 +237,80 @@ function renderFeaturedSection() {
   track.innerHTML = '';
 
   featuredList.forEach(item => {
-    // isFeatured = true 전달
     const card = createCardElement(item, item.originalIndex, true);
     track.appendChild(card);
   });
+
+  // 추천 슬라이더 드래그 & 버튼 인터랙션 적용
+  setupFeaturedCarouselControls();
+}
+
+// 추천 캐러셀 버튼 클릭 및 드래그 스크롤 이벤트 연결
+function setupFeaturedCarouselControls() {
+  const slider = document.getElementById('featured-slider');
+  const prevBtn = document.getElementById('featured-prev');
+  const nextBtn = document.getElementById('featured-next');
+
+  if (!slider) return;
+
+  // 1. 좌/우 버튼 클릭 시 1칸(300px)씩 이동
+  const scrollStep = 300;
+
+  if (prevBtn) {
+    prevBtn.onclick = () => {
+      slider.scrollBy({ left: -scrollStep, behavior: 'smooth' });
+    };
+  }
+
+  if (nextBtn) {
+    nextBtn.onclick = () => {
+      slider.scrollBy({ left: scrollStep, behavior: 'smooth' });
+    };
+  }
+
+  // 2. 마우스 드래그로 스크롤 넘기기 구현
+  let isDown = false;
+  let startX = 0;
+  let scrollLeft = 0;
+  let isDragging = false;
+
+  slider.onmousedown = (e) => {
+    isDown = true;
+    isDragging = false;
+    slider.classList.add('grabbing');
+    startX = e.pageX - slider.offsetLeft;
+    scrollLeft = slider.scrollLeft;
+  };
+
+  slider.onmouseleave = () => {
+    isDown = false;
+    slider.classList.remove('grabbing');
+  };
+
+  slider.onmouseup = () => {
+    isDown = false;
+    slider.classList.remove('grabbing');
+  };
+
+  slider.onmousemove = (e) => {
+    if (!isDown) return;
+    e.preventDefault();
+    const x = e.pageX - slider.offsetLeft;
+    const walk = (x - startX) * 1.5; // 드래그 속도 감도 조절
+    
+    if (Math.abs(walk) > 5) {
+      isDragging = true;
+    }
+    slider.scrollLeft = scrollLeft - walk;
+  };
+
+  // 드래그 후 클릭 이벤트 방지 (드래그 시 모달창 열림 방지)
+  slider.onclick = (e) => {
+    if (isDragging) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  };
 }
 
 // 필터링과 정렬을 통합 실행하는 함수
@@ -342,7 +407,7 @@ function setupSortEvent() {
   }
 }
 
-// 카드 DOM 요소 생성 (isFeatured 매개변수 추가)
+// 카드 DOM 요소 생성
 function createCardElement(item, originalIndex, isFeatured = false) {
   const props = item.properties || {};
 
@@ -360,7 +425,6 @@ function createCardElement(item, originalIndex, isFeatured = false) {
   const isFiveStar = ratingVal >= 5;
 
   const card = document.createElement('div');
-  // 5점 이상이거나 추천 맛집인 경우 featured 클래스 추가
   card.className = `card ${isFiveStar || isFeatured ? 'featured-card' : ''}`;
   card.innerHTML = `
     ${isFiveStar ? '<div class="featured-badge">👑 MUST VISIT</div>' : ''}
