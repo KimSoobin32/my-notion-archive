@@ -18,7 +18,7 @@ const yieldToMain = () => {
 const CUISINE_TYPES = [
   '한식', '중식', '일식', '양식', '분식', '고깃집',
   '빵', '카페', '디저트', '햄버거', '마라탕', '샤브샤브',
-  '멕시칸', '베트남', '기타'
+  '멕시칸', '베트남', '덮밥', '샐러드', '호프', '기타'
 ];
 
 // ==========================================
@@ -50,7 +50,6 @@ const NotionParser = {
 
   // Cuisine Type 추출 및 규격화 파서
   getCuisine(props) {
-    // 1. 노션 property 키 지원 ('Cuisine Type', 'Cuisine', '종류', '카테고리' 등)
     const prop = props['Cuisine Type'] || 
                  props['Cuisine'] || 
                  props['cuisine'] || 
@@ -62,25 +61,17 @@ const NotionParser = {
 
     let rawValue = '';
 
-    // 2. select 타입 처리 (prop.select.name)
     if (prop.type === 'select' && prop.select) {
       rawValue = prop.select.name;
-    } 
-    // 3. multi_select 타입 처리
-    else if (prop.type === 'multi_select' && prop.multi_select?.length > 0) {
+    } else if (prop.type === 'multi_select' && prop.multi_select?.length > 0) {
       rawValue = prop.multi_select[0].name;
-    } 
-    // 4. rich_text 타입 처리
-    else {
+    } else {
       rawValue = this.getText(prop);
     }
 
     if (!rawValue) return '기타';
 
-    // 5. 옵션 목록(CUISINE_TYPES) 중 완벽히 일치하거나 포함되는 항목 찾기
     const matched = CUISINE_TYPES.find(type => rawValue.trim() === type || rawValue.includes(type));
-
-    // 6. 지정된 옵션 목록에 없으면 '기타' 반환
     return matched || '기타';
   },
 
@@ -208,14 +199,15 @@ async function init() {
       originalIndex: index
     }));
 
-    console.log('=== 🚀 노션 API 원본 데이터 ===', rawNotionData);
-
     if (rawNotionData.length === 0) {
       grid.innerHTML = '<div class="loading">등록된 맛집 데이터가 없습니다.</div>';
       return;
     }
 
-    // 초기 카드 렌더링 (전체 필터 + 최신 방문순 기본 적용)
+    // 1. 상단 추천 맛집 섹션(별 5개) 렌더링
+    renderFeaturedSection();
+
+    // 2. 메인 카드 목록 렌더링
     applyFilterAndSort();
 
     setupCuisineFilterEvents();
@@ -228,16 +220,42 @@ async function init() {
   }
 }
 
+// 상단 추천 맛집 (Rating 5점) 섹션 렌더링
+function renderFeaturedSection() {
+  const container = document.getElementById('featured-container');
+  const track = document.getElementById('featured-track');
+  
+  if (!container || !track) return;
+
+  // 별점 5점 이상인 맛집만 필터링
+  const featuredList = rawNotionData.filter(item => {
+    const ratingVal = NotionParser.getRatingValue(item.properties['Rating'] || item.properties['평점'] || item.properties['별점']);
+    return ratingVal >= 5;
+  });
+
+  if (featuredList.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+  track.innerHTML = '';
+
+  featuredList.forEach(item => {
+    // isFeatured = true 전달
+    const card = createCardElement(item, item.originalIndex, true);
+    track.appendChild(card);
+  });
+}
+
 // 필터링과 정렬을 통합 실행하는 함수
 function applyFilterAndSort() {
-  // 1. Cuisine 필터링
   let filtered = rawNotionData.filter(item => {
     if (currentCuisineFilter === 'ALL') return true;
     const cuisine = NotionParser.getCuisine(item.properties);
     return cuisine === currentCuisineFilter;
   });
 
-  // 2. 정렬 적용
   switch (currentSortType) {
     case 'oldest':
       filtered.sort((a, b) => {
@@ -324,8 +342,8 @@ function setupSortEvent() {
   }
 }
 
-// 카드 DOM 요소 생성
-function createCardElement(item, originalIndex) {
+// 카드 DOM 요소 생성 (isFeatured 매개변수 추가)
+function createCardElement(item, originalIndex, isFeatured = false) {
   const props = item.properties || {};
 
   const icon = item.icon?.type === 'emoji' ? item.icon.emoji : '🍽️';
@@ -333,13 +351,19 @@ function createCardElement(item, originalIndex) {
   const cuisine = NotionParser.getCuisine(props);
   const menu = NotionParser.getText(props['매뉴']) || NotionParser.getText(props['메뉴']);
   const city = NotionParser.getText(props['City']) || NotionParser.getText(props['도시']);
-  const rating = NotionParser.getRating(props['Rating'] || props['평점'] || props['별점']);
+  const ratingProp = props['Rating'] || props['평점'] || props['별점'];
+  const rating = NotionParser.getRating(ratingProp);
+  const ratingVal = NotionParser.getRatingValue(ratingProp);
   const comment = NotionParser.getText(props['Comment']) || NotionParser.getText(props['코멘트']);
   const visitDate = NotionParser.getDate(props['방문일']);
 
+  const isFiveStar = ratingVal >= 5;
+
   const card = document.createElement('div');
-  card.className = 'card';
+  // 5점 이상이거나 추천 맛집인 경우 featured 클래스 추가
+  card.className = `card ${isFiveStar || isFeatured ? 'featured-card' : ''}`;
   card.innerHTML = `
+    ${isFiveStar ? '<div class="featured-badge">👑 MUST VISIT</div>' : ''}
     <div>
       <div class="card-header">
         <span class="icon">${icon}</span>
