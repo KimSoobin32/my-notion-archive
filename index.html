@@ -16,8 +16,16 @@
 
     <!-- 상단 추천 맛집 슬라이드 영역 -->
     <section id="featured-container" class="featured-section" style="display: none;">
-      <h2 class="featured-header">🔥 강추! 최고 점수 맛집 (⭐ 5개)</h2>
-      <div class="featured-slider">
+      <div class="featured-header-group">
+        <h2 class="featured-header">🔥 강추! 최고 점수 맛집 (⭐ 5개)</h2>
+        <!-- 좌/우 슬라이드 버튼 -->
+        <div class="featured-controls">
+          <button id="featured-prev" class="slider-btn" aria-label="이전">&#10094;</button>
+          <button id="featured-next" class="slider-btn" aria-label="다음">&#10095;</button>
+        </div>
+      </div>
+      
+      <div id="featured-slider" class="featured-slider">
         <div id="featured-track" class="featured-track"></div>
       </div>
     </section>
