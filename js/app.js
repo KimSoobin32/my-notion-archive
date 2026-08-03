@@ -114,6 +114,7 @@ const NotionParser = {
 
 // ==========================================
 // 4. 노션 본문 블록(Block) HTML 변환 파서
+// (blocks.js에 함수가 없는 경우를 위한 자체 렌더링 대비)
 // ==========================================
 function parseBlockToHtml(block) {
   const type = block.type;
@@ -199,7 +200,7 @@ async function init() {
     }));
 
     if (rawNotionData.length === 0) {
-      grid.innerHTML = '<div class="loading">등록된 맛집 데이터가 없습니다.</div>';
+      if (grid) grid.innerHTML = '<div class="loading">등록된 맛집 데이터가 없습니다.</div>';
       return;
     }
 
@@ -212,7 +213,7 @@ async function init() {
 
   } catch (err) {
     console.error('데이터 로딩 오류:', err);
-    grid.innerHTML = '<div class="loading">데이터를 불러오지 못했습니다. F12 콘솔을 확인해 주세요.</div>';
+    if (grid) grid.innerHTML = '<div class="loading">데이터를 불러오지 못했습니다. 콘솔을 확인해 주세요.</div>';
   }
 }
 
@@ -362,6 +363,8 @@ function applyFilterAndSort() {
 // 카드 목록 렌더링
 function renderCards(dataList) {
   const grid = document.getElementById('restaurant-grid');
+  if (!grid) return;
+
   grid.innerHTML = '';
 
   if (dataList.length === 0) {
@@ -403,7 +406,7 @@ function setupSortEvent() {
   }
 }
 
-// 카드 DOM 요소 생성 (접근성 키보드 옵션 포함)
+// 카드 DOM 요소 생성
 function createCardElement(item, originalIndex, isFeatured = false) {
   const props = item.properties || {};
 
@@ -423,7 +426,6 @@ function createCardElement(item, originalIndex, isFeatured = false) {
   const card = document.createElement('div');
   card.className = `card ${isFiveStar || isFeatured ? 'featured-card' : ''}`;
   
-  // 웹 접근성 (A11y) 설정
   card.setAttribute('tabindex', '0');
   card.setAttribute('role', 'button');
   card.setAttribute('aria-label', `${title}, ${cuisine || '음식점'}, 평점 ${rating || '없음'}`);
@@ -449,7 +451,6 @@ function createCardElement(item, originalIndex, isFeatured = false) {
     ${visitDate ? `<div class="date">방문일: ${visitDate}</div>` : ''}
   `;
 
-  // 마우스 클릭 및 키보드 엔터/스페이스 바 지원
   card.addEventListener('click', () => openDetailModal(originalIndex));
   card.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -461,10 +462,16 @@ function createCardElement(item, originalIndex, isFeatured = false) {
   return card;
 }
 
-// 상세 모달 열기
+// 상세 모달 열기 (blocks.js 연동 기능 포함)
 async function openDetailModal(index) {
   const item = rawNotionData.find(d => d.originalIndex === index);
   if (!item) return;
+
+  const modalBody = document.getElementById('modal-body');
+  if (!modalBody) {
+    console.error('modal-body 엘리먼트를 찾을 수 없습니다.');
+    return;
+  }
 
   const props = item.properties || {};
   const icon = item.icon?.type === 'emoji' ? item.icon.emoji : '🍽️';
@@ -475,8 +482,6 @@ async function openDetailModal(index) {
   const rating = NotionParser.getRating(props['Rating'] || props['평점'] || props['별점']);
   const visitDate = NotionParser.getDate(props['방문일']);
   const notionUrl = item.public_url || item.url;
-
-  const modalBody = document.getElementById('modal-body');
 
   modalBody.innerHTML = `
     <div class="modal-title-group">
@@ -504,22 +509,32 @@ async function openDetailModal(index) {
   `;
 
   const overlay = document.getElementById('modal-overlay');
-  overlay.classList.add('active');
+  if (overlay) overlay.classList.add('active');
 
-  // 모달 오픈 시 닫기 버튼에 포커스 조율 (접근성)
   const closeBtn = document.getElementById('modal-close');
   if (closeBtn) closeBtn.focus();
 
   await yieldToMain();
 
+  const contentArea = document.getElementById('modal-content-area');
+
+  // blocks.js 에 별도 모달 렌더링 함수가 정의되어 있는 경우 이를 우선 호출
+  if (typeof window.renderNotionBlocks === 'function') {
+    try {
+      await window.renderNotionBlocks(item.id, contentArea);
+      return;
+    } catch (err) {
+      console.warn('blocks.js renderNotionBlocks 실행 중 오류 발생, 자체 API 파싱으로 대체합니다.', err);
+    }
+  }
+
+  // 기본 노션 본문 블록 API 렌더링 처리
   try {
     const res = await fetch(`/api/blocks?pageId=${item.id}`);
     const blocks = await res.json();
 
-    const contentArea = document.getElementById('modal-content-area');
-
     if (!Array.isArray(blocks) || blocks.length === 0) {
-      contentArea.innerHTML = '<p style="color:#6c7a96;">본문에 작성된 내용이 없습니다.</p>';
+      if (contentArea) contentArea.innerHTML = '<p style="color:#6c7a96;">본문에 작성된 내용이 없습니다.</p>';
       return;
     }
 
@@ -532,11 +547,13 @@ async function openDetailModal(index) {
       }
     }
 
-    contentArea.innerHTML = htmlContent || '<p style="color:#6c7a96;">표시할 수 있는 본문 요소가 없습니다.</p>';
+    if (contentArea) {
+      contentArea.innerHTML = htmlContent || '<p style="color:#6c7a96;">표시할 수 있는 본문 요소가 없습니다.</p>';
+    }
 
   } catch (err) {
     console.error('본문 로딩 실패:', err);
-    document.getElementById('modal-content-area').innerHTML = '<p style="color:#bf616a;">본문 글을 불러오지 못했습니다.</p>';
+    if (contentArea) contentArea.innerHTML = '<p style="color:#bf616a;">본문 글을 불러오지 못했습니다.</p>';
   }
 }
 
@@ -545,7 +562,9 @@ function setupModalEvents() {
   const overlay = document.getElementById('modal-overlay');
   const closeBtn = document.getElementById('modal-close');
 
-  const closeModal = () => overlay.classList.remove('active');
+  const closeModal = () => {
+    if (overlay) overlay.classList.remove('active');
+  };
 
   if (closeBtn) closeBtn.addEventListener('click', closeModal);
   
