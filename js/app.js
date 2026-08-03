@@ -426,33 +426,28 @@ function createCardElement(item, originalIndex, isFeatured = false) {
 
   const card = document.createElement('div');
   card.className = `card ${isFiveStar || isFeatured ? 'featured-card' : ''}`;
-  
-  // 웹 접근성 추가 (키보드 Tab 및 Enter 지원)
-  card.setAttribute('tabindex', '0');
-  card.setAttribute('role', 'button');
-  card.setAttribute('aria-label', `${title}, ${cuisine || '음식점'}, 평점 ${rating || '없음'}`);
-
   card.innerHTML = `
     ${isFiveStar ? '<div class="featured-badge">👑 MUST VISIT</div>' : ''}
     <div>
       <div class="card-header">
-        <span class="icon" aria-hidden="true">${icon}</span>
+        <span class="icon">${icon}</span>
         <span class="title">${title}</span>
       </div>
-      ...
+
+      <div class="tags">
+        ${cuisine ? `<span class="tag cuisine">🍱 ${cuisine}</span>` : ''}
+        ${city ? `<span class="tag city">📍 ${city}</span>` : ''}
+        ${menu ? `<span class="tag">🍴 ${menu}</span>` : ''}
+      </div>
+
+      ${rating ? `<div class="rating">${rating.includes('⭐') ? rating : '⭐ ' + rating}</div>` : ''}
+      ${comment ? `<div class="preview-comment">${comment}</div>` : ''}
+    </div>
+
+    ${visitDate ? `<div class="date">방문일: ${visitDate}</div>` : ''}
   `;
 
-  // 클릭 이벤트
   card.addEventListener('click', () => openDetailModal(originalIndex));
-  
-  // Enter 키로 모달 열기 지원
-  card.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      openDetailModal(originalIndex);
-    }
-  });
-
   return card;
 }
 
