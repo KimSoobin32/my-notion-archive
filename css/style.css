@@ -170,3 +170,71 @@ body {
   color: #88c0d0;
   border: 1px solid #434c5e;
 }
+
+
+/* ==========================================
+   추천 맛집 섹션 및 카드 특별 스타일
+========================================== */
+
+/* 상단 추천 섹션 전체 레이아웃 */
+.featured-section {
+  margin-bottom: 32px;
+  background: rgba(235, 203, 139, 0.05);
+  border: 1px solid rgba(235, 203, 139, 0.2);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.featured-header {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ebcb8b;
+  margin-bottom: 16px;
+}
+
+/* 가로 스크롤 가능한 슬라이더 */
+.featured-slider {
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #ebcb8b #2e3440;
+}
+
+.featured-track {
+  display: flex;
+  gap: 16px;
+}
+
+.featured-track .card {
+  min-width: 280px;
+  max-width: 320px;
+  flex-shrink: 0;
+}
+
+/* ⭐ 5개 맛집 카드의 특별 금빛 글로우 테두리 스타일 */
+.card.featured-card {
+  position: relative;
+  background: linear-gradient(145deg, #2e3440 0%, #292e39 100%);
+  border: 2px solid #ebcb8b;
+  box-shadow: 0 4px 20px rgba(235, 203, 139, 0.15);
+}
+
+.card.featured-card:hover {
+  border-color: #f0d8a8;
+  box-shadow: 0 8px 30px rgba(235, 203, 139, 0.3);
+  transform: translateY(-4px);
+}
+
+/* 우측 상단 골드 배지 */
+.featured-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: linear-gradient(135deg, #ebcb8b 0%, #d08f70 100%);
+  color: #1e222a;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
