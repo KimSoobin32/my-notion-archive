@@ -22,6 +22,42 @@
         <option value="rating-asc">별점 낮은순</option>
       </select>
     </div>
+
+    <!-- index.html 내 <div id="restaurant-grid"> 위쪽에 추가 -->
+<div class="filter-container" style="margin-bottom: 16px;">
+  <div id="cuisine-filter-bar" class="cuisine-bar" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch;">
+    <button class="cuisine-btn active" data-cuisine="ALL">전체</button>
+    <button class="cuisine-btn" data-cuisine="한식">한식</button>
+    <button class="cuisine-btn" data-cuisine="중식">중식</button>
+    <button class="cuisine-btn" data-cuisine="일식">일식</button>
+    <button class="cuisine-btn" data-cuisine="양식">양식</button>
+    <button class="cuisine-btn" data-cuisine="분식">분식</button>
+    <button class="cuisine-btn" data-cuisine="고깃집">고깃집</button>
+    <button class="cuisine-btn" data-cuisine="빵">빵</button>
+    <button class="cuisine-btn" data-cuisine="카페">카페</button>
+    <button class="cuisine-btn" data-cuisine="디저트">디저트</button>
+    <button class="cuisine-btn" data-cuisine="햄버거">햄버거</button>
+    <button class="cuisine-btn" data-cuisine="마라탕">마라탕</button>
+    <button class="cuisine-btn" data-cuisine="샤브샤브">샤브샤브</button>
+    <button class="cuisine-btn" data-cuisine="멕시칸">멕시칸</button>
+    <button class="cuisine-btn" data-cuisine="베트남">베트남</button>
+    <button class="cuisine-btn" data-cuisine="덮밥">덮밥</button>
+    <button class="cuisine-btn" data-cuisine="샐러드">샐러드</button>
+    <button class="cuisine-btn" data-cuisine="호프">호프</button>
+    <button class="cuisine-btn" data-cuisine="기타">기타</button>
+  </div>
+</div>
+
+<div class="controls-bar" style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+  <select id="sort-select" style="background: #2e3440; color: #eceff4; border: 1px solid #4c566a; padding: 8px 12px; border-radius: 6px; font-size: 0.95rem; cursor: pointer;">
+    <option value="latest" selected>최신 방문순</option>
+    <option value="oldest">오래된 방문순</option>
+    <option value="rating-desc">별점 높은순</option>
+    <option value="rating-asc">별점 낮은순</option>
+  </select>
+</div>
+
+<div id="restaurant-grid" class="grid"></div>
     
     <div class="grid" id="restaurant-grid">
       <div class="loading">데이터를 불러오는 중입니다...</div>
